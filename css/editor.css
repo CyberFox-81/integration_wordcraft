@@ -1,0 +1,264 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Britton Couchman <brittondcouchman@gmail.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+#content.app-integration_wordcraft {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+#wordcraft-editor {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	width: 100%;
+	height: 100%;
+	background: var(--color-main-background);
+}
+
+.wordcraft-bar {
+	display: flex;
+	align-items: center;
+	gap: calc(var(--default-grid-baseline, 4px) * 2);
+	flex: 0 0 auto;
+	min-height: var(--default-clickable-area, 34px);
+	padding: calc(var(--default-grid-baseline, 4px) * 1.5) calc(var(--default-grid-baseline, 4px) * 3);
+	border-bottom: 1px solid var(--color-border);
+	color: var(--color-main-text);
+}
+
+.wordcraft-bar__icon {
+	display: inline-flex;
+	flex: 0 0 auto;
+	width: 20px;
+	height: 20px;
+	color: var(--color-primary-element);
+}
+
+.wordcraft-bar__icon svg {
+	width: 100%;
+	height: 100%;
+}
+
+.wordcraft-bar__title {
+	flex: 0 1 auto;
+	min-width: 0;
+	margin: 0;
+	overflow: hidden;
+	font-size: var(--default-font-size, 15px);
+	font-weight: bold;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wordcraft-bar__status {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	color: var(--color-text-maxcontrast);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wordcraft-bar__status[data-state='error'] {
+	color: var(--color-error-text, var(--color-error));
+	font-weight: bold;
+}
+
+.wordcraft-bar__status[data-state='readonly'] {
+	color: var(--color-warning-text, var(--color-warning));
+}
+
+.wordcraft-bar__toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--default-grid-baseline, 4px);
+	flex: 0 0 auto;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.wordcraft-bar__toggle input {
+	margin: 0;
+	cursor: pointer;
+	accent-color: var(--color-primary-element);
+}
+
+/* Scoped by id so Nextcloud's global button styles don't win. */
+:is(#wordcraft-editor, .wordcraft-save) .wordcraft-button {
+	flex: 0 0 auto;
+	min-height: var(--default-clickable-area, 34px);
+	margin: 0;
+	padding: 0 calc(var(--default-grid-baseline, 4px) * 4);
+	border: 1px solid var(--color-border-dark, var(--color-border));
+	border-radius: var(--border-radius-element, var(--border-radius-large, 10px));
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	font: inherit;
+	font-weight: bold;
+	cursor: pointer;
+}
+
+:is(#wordcraft-editor, .wordcraft-save) .wordcraft-button:hover,
+:is(#wordcraft-editor, .wordcraft-save) .wordcraft-button:focus-visible {
+	background: var(--color-background-hover);
+}
+
+:is(#wordcraft-editor, .wordcraft-save) .wordcraft-button--primary {
+	border-color: var(--color-primary-element);
+	background: var(--color-primary-element);
+	color: var(--color-primary-element-text);
+}
+
+:is(#wordcraft-editor, .wordcraft-save) .wordcraft-button--primary:hover,
+:is(#wordcraft-editor, .wordcraft-save) .wordcraft-button--primary:focus-visible {
+	background: var(--color-primary-element-hover);
+}
+
+:is(#wordcraft-editor, .wordcraft-save) .wordcraft-button[hidden] {
+	display: none;
+}
+
+.wordcraft-stage {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.wordcraft-frame {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
+
+.wordcraft-overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: calc(var(--default-grid-baseline, 4px) * 4);
+	padding: calc(var(--default-grid-baseline, 4px) * 8);
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	text-align: center;
+}
+
+.wordcraft-overlay[hidden] {
+	display: none;
+}
+
+.wordcraft-overlay__spinner {
+	width: 44px;
+	height: 44px;
+}
+
+.wordcraft-overlay__text {
+	max-width: 60ch;
+	margin: 0;
+}
+
+.wordcraft-overlay[data-error='true'] .wordcraft-overlay__text {
+	color: var(--color-error-text, var(--color-error));
+}
+
+/* Save As */
+
+.wordcraft-save {
+	position: fixed;
+	inset: 0;
+	width: min(480px, calc(100vw - 32px));
+	height: fit-content;
+	margin: auto;
+	padding: calc(var(--default-grid-baseline, 4px) * 6);
+	border: 0;
+	border-radius: var(--border-radius-container-large, var(--border-radius-large, 16px));
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	box-shadow: 0 0 40px var(--color-box-shadow, rgba(0, 0, 0, 0.3));
+}
+
+.wordcraft-save::backdrop {
+	background: rgba(0, 0, 0, 0.4);
+}
+
+.wordcraft-save form {
+	display: flex;
+	flex-direction: column;
+	gap: calc(var(--default-grid-baseline, 4px) * 3);
+}
+
+.wordcraft-save__heading {
+	margin: 0;
+	font-size: 20px;
+}
+
+.wordcraft-save__hint {
+	margin: 0;
+	color: var(--color-text-maxcontrast);
+}
+
+.wordcraft-save__label {
+	display: flex;
+	flex-direction: column;
+	gap: var(--default-grid-baseline, 4px);
+}
+
+.wordcraft-save__input {
+	width: 100%;
+	min-height: var(--default-clickable-area, 34px);
+	margin: 0;
+	padding: 0 calc(var(--default-grid-baseline, 4px) * 3);
+	border: 2px solid var(--color-border-maxcontrast);
+	border-radius: var(--border-radius-element, var(--border-radius-large, 10px));
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	font: inherit;
+	box-sizing: border-box;
+}
+
+.wordcraft-save__input:focus {
+	border-color: var(--color-primary-element);
+	outline: none;
+}
+
+.wordcraft-save__folder {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: calc(var(--default-grid-baseline, 4px) * 2);
+}
+
+.wordcraft-save__folder-path {
+	min-width: 0;
+	overflow: hidden;
+	color: var(--color-text-maxcontrast);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wordcraft-save__error {
+	margin: 0;
+	color: var(--color-error-text, var(--color-error));
+}
+
+.wordcraft-save__error:empty {
+	display: none;
+}
+
+.wordcraft-save__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: calc(var(--default-grid-baseline, 4px) * 2);
+}
+
+@media (max-width: 720px) {
+	.wordcraft-bar__toggle {
+		display: none;
+	}
+}

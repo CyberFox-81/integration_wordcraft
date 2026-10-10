@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!--
+  - SPDX-FileCopyrightText: 2026 Britton Couchman <brittondcouchman@gmail.com>
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>integration_wordcraft</id>
+	<name>WordCraft integration</name>
+	<summary>Write and edit Word and OpenDocument files in Nextcloud with the WordCraft word processor</summary>
+	<description><![CDATA[Open a Word (.docx, .docm, .dotx, .doc), OpenDocument text (.odt) or RTF file in Files with **Edit in WordCraft** and work on it right in the browser: styles, tables, pictures, headers and footers, comments, track changes, references, mail merge and more.
+
+- **Save** writes the document straight back to Nextcloud, which keeps the previous state as a file version.
+- **Save As** and **Export** (PDF, ODT, RTF, plain text…) store a file in any folder you pick.
+- Read-only files open normally; saving offers a copy.
+- If someone else changes the file while you have it open, you choose whether to replace their version or save a copy.
+- Optionally, clicking a document in Files opens it in WordCraft.
+
+WordCraft runs entirely in your browser as WebAssembly. Documents go only between your browser and your Nextcloud, and the server needs no extra software or document server.
+
+This is a community integration. [WordCraft](https://github.com/storytold/wordcraft) is an open-source, Rust-native word processor by the ArtCraft team; this app embeds a build of it and is not affiliated with them.
+
+**Requirements:** a browser with WebGPU or WebGL2, and a web server that serves `.wasm` files as `application/wasm` (Nextcloud's own Apache and nginx configurations do).]]></description>
+	<version>0.1.0</version>
+	<licence>agpl</licence>
+	<author mail="brittondcouchman@gmail.com" homepage="https://github.com/CyberFox-81">Britton Couchman</author>
+	<namespace>WordCraftIntegration</namespace>
+	<category>office</category>
+	<category>files</category>
+	<category>integration</category>
+	<website>https://github.com/CyberFox-81/integration_wordcraft</website>
+	<bugs>https://github.com/CyberFox-81/integration_wordcraft/issues</bugs>
+	<repository type="git">https://github.com/CyberFox-81/integration_wordcraft.git</repository>
+	<screenshot>https://raw.githubusercontent.com/CyberFox-81/integration_wordcraft/main/screenshots/editor.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/CyberFox-81/integration_wordcraft/main/screenshots/files-action.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/CyberFox-81/integration_wordcraft/main/screenshots/export.png</screenshot>
+	<dependencies>
+		<nextcloud min-version="33" max-version="35"/>
+	</dependencies>
+</info>
