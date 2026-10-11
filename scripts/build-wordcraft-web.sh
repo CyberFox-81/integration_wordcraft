@@ -28,7 +28,7 @@ PATCH="$APP_DIR/patches/wordcraft-nextcloud.patch"
 OUT="$APP_DIR/web"
 TARGET_DIR="${CARGO_TARGET_DIR:-$SRC/target}"
 
-if [ ! -d "$SRC/.git" ]; then
+if [ ! -e "$SRC/.git" ]; then
 	git clone https://github.com/storytold/wordcraft.git "$SRC"
 	git -C "$SRC" checkout --quiet "$WORDCRAFT_REF"
 fi
