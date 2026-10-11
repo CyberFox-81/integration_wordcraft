@@ -25,13 +25,13 @@ WordCraft runs entirely in your browser as WebAssembly. Documents go only betwee
 
 ## Install
 
-From the Nextcloud App Store: **Apps ▸ Office & text ▸ WordCraft integration ▸ Download and enable**, or `sudo -u www-data php occ app:install integration_wordcraft`.
+Until the app is in the Nextcloud App Store, the latest version is in [CyberFox-81/nextcloud_plugins](https://github.com/CyberFox-81/nextcloud_plugins), whose README has step-by-step commands for Docker, Nextcloud AIO and regular servers. In short:
 
-Manually:
-
-1. Download `integration_wordcraft-<version>.tar.gz` from the [releases](https://github.com/CyberFox-81/integration_wordcraft/releases) and extract it into your Nextcloud's `custom_apps/` (or `apps/`) folder, so you have `custom_apps/integration_wordcraft/appinfo/info.xml`.
+1. Download [`integration_wordcraft.tar.gz`](https://github.com/CyberFox-81/nextcloud_plugins/raw/main/integration_wordcraft/integration_wordcraft.tar.gz) and extract it into your Nextcloud's `custom_apps/` (or `apps/`) folder, so you have `custom_apps/integration_wordcraft/appinfo/info.xml`.
 2. Make it readable by the web server user, e.g. `chown -R www-data:www-data custom_apps/integration_wordcraft`.
 3. Enable it: `sudo -u www-data php occ app:enable integration_wordcraft`. In Docker: `docker exec -u www-data nextcloud php occ app:enable integration_wordcraft`.
+
+Once it's in the App Store: **Apps ▸ Office & text ▸ WordCraft integration ▸ Download and enable**, or `sudo -u www-data php occ app:install integration_wordcraft`.
 
 To make WordCraft the click-to-open default for every user who hasn't chosen otherwise:
 
@@ -89,6 +89,12 @@ scripts/sign-release.sh --key ~/.nextcloud/certificates/integration_wordcraft.ke
 ```
 
 The script code-signs the app with `occ integrity:sign-app` (borrowed from a running Nextcloud container, or `--occ` for a local install; `--archive` signs a prebuilt archive), packs `integration_wordcraft-<version>.tar.gz` and prints the App Store signature. Attach the archive to a GitHub release, then submit its download URL and the signature at [apps.nextcloud.com/developer/apps/releases/new](https://apps.nextcloud.com/developer/apps/releases/new).
+
+Every new version also goes to [nextcloud_plugins](https://github.com/CyberFox-81/nextcloud_plugins), replacing the previous one, with that repository's script (from a clone next to this one):
+
+```sh
+../nextcloud_plugins/scripts/update-plugin.py build/dist/integration_wordcraft-<version>.tar.gz
+```
 
 ## Limitations
 
