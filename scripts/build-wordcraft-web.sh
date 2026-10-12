@@ -22,7 +22,7 @@
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORDCRAFT_REF="${WORDCRAFT_REF:-850fa0576ab5f9c1398f08cbd4ec248fa593caca}"
+WORDCRAFT_REF="${WORDCRAFT_REF:-159b84f54c74e9e82fb3109b758ae7dd6f4e3ab0}"
 SRC="${1:-$APP_DIR/build/wordcraft}"
 PATCH="$APP_DIR/patches/wordcraft-nextcloud.patch"
 OUT="$APP_DIR/web"

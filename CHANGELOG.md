@@ -4,6 +4,11 @@
 -->
 # Changelog
 
+## 0.1.3 – 2026-10-12
+
+- WordCraft 0.6.1 (commit 159b84f): the latest WordCraft, with the embedding bridge rebased onto it
+- Opening a document from Files goes straight to it, without WordCraft's new File › Home start screen first
+
 ## 0.1.2 – 2026-10-11
 
 - WordCraft 0.5.0 (commit 850fa05): the latest WordCraft, with the embedding bridge rebased onto it

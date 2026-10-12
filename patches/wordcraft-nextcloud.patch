@@ -1,18 +1,18 @@
 diff --git a/apps/wordcraft-web/Cargo.toml b/apps/wordcraft-web/Cargo.toml
-index befd8b7..0180836 100644
+index d9b44aa..36242e7 100644
 --- a/apps/wordcraft-web/Cargo.toml
 +++ b/apps/wordcraft-web/Cargo.toml
-@@ -28,4 +28,4 @@ rfd = { workspace = true }
+@@ -29,4 +29,4 @@ rfd = { workspace = true }
  wasm-bindgen = "0.2"
  wasm-bindgen-futures = "0.4"
  js-sys = "0.3"
--web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File"] }
-+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File", "MessageEvent", "UrlSearchParams"] }
+-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File", "DomStringList", "IdbFactory", "IdbOpenDbRequest", "IdbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "MediaQueryList"] }
++web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File", "DomStringList", "IdbFactory", "IdbOpenDbRequest", "IdbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "MediaQueryList", "MessageEvent", "UrlSearchParams"] }
 diff --git a/apps/wordcraft-web/src/web.rs b/apps/wordcraft-web/src/web.rs
-index 5d68374..4acf084 100644
+index f6ccc77..b7d4e6a 100644
 --- a/apps/wordcraft-web/src/web.rs
 +++ b/apps/wordcraft-web/src/web.rs
-@@ -25,8 +25,13 @@ pub fn start() {
+@@ -26,9 +26,14 @@ pub fn start() {
              log::error!("missing <canvas id=\"{CANVAS_ID}\">");
              return;
          };
@@ -20,14 +20,15 @@ index 5d68374..4acf084 100644
 +        // files in it and stores what it saves (`host`). It guards leaving the page itself.
 +        let bridge = if query_param("host").as_deref() == Some("parent") { host::Bridge::new() } else { None };
          let dirty = Rc::new(Cell::new(false));
--        if let Err(e) = guard_unload(dirty.clone()) {
+         let saves = Rc::new(PickerSaves::default());
+-        if let Err(e) = guard_unload(dirty.clone(), saves.clone()) {
 +        if bridge.is_none()
-+            && let Err(e) = guard_unload(dirty.clone())
++            && let Err(e) = guard_unload(dirty.clone(), saves.clone())
 +        {
              log::error!("no unsaved-changes guard: {e}");
          }
          let mut options = eframe::WebOptions::default();
-@@ -35,6 +40,7 @@ pub fn start() {
+@@ -37,6 +42,7 @@ pub fn start() {
          {
              create.instance_descriptor.backends = eframe::wgpu::Backends::GL;
          }
@@ -35,17 +36,19 @@ index 5d68374..4acf084 100644
          let result = eframe::WebRunner::new()
              .start(
                  canvas,
-@@ -48,12 +54,27 @@ pub fn start() {
-                         log::error!("pasting pictures is unavailable: {e}");
-                     }
-                     let doc = if query().contains("sample") { wordcraft_engine::sample::sample_document() } else { wordcraft_doc::Document::new() };
--                    let mut app = WordApp::new(Session::new(doc), services(inbox.clone(), cc.egui_ctx.clone(), dirty));
-+                    let mut services = services(inbox.clone(), cc.egui_ctx.clone(), dirty);
+@@ -58,16 +64,31 @@ pub fn start() {
+                     let doc = if sample { wordcraft_engine::sample::sample_document() } else { wordcraft_engine::blank_document(&region) };
+                     let mut session = Session::new(doc);
+                     session.system_region = region;
+-                    let mut app = WordApp::new(session, services(inbox.clone(), cc.egui_ctx.clone(), dirty, saves.clone()));
++                    let mut services = services(inbox.clone(), cc.egui_ctx.clone(), dirty, saves.clone());
 +                    if let Some(bridge) = &app_bridge {
 +                        bridge.connect(&mut services, inbox.clone(), cc.egui_ctx.clone());
 +                    }
-+                    let mut app = WordApp::new(Session::new(doc), services);
++                    let mut app = WordApp::new(session, services);
                      app.autosave = false;
+-                    // No document to show: start on File › Home, as the desktop app does (#766).
+-                    if !sample {
 +                    if let Some(bridge) = &app_bridge {
 +                        // `?author=`: the host's name for the user signs comments and tracked
 +                        // changes (the browser keeps no File › Options name between visits).
@@ -53,8 +56,12 @@ index 5d68374..4acf084 100644
 +                            let _ = app.session.run("file.setAuthor", &serde_json::json!({ "name": author }));
 +                        }
 +                        bridge.post_ready();
-+                    }
-                     Ok(Box::new(WebShell { app, inbox }))
++                    } else if !sample {
++                        // No document to show: start on File › Home, as the desktop app does (#766).
++                        // (A host page sends the document to open instead.)
+                         app.start_screen();
+                     }
+                     Ok(Box::new(WebShell { app, inbox, saves }))
                  }),
              )
              .await;
@@ -64,7 +71,7 @@ index 5d68374..4acf084 100644
          if let Some(el) = document.get_element_by_id(LOADING_ID) {
              match result {
                  Ok(()) => el.remove(),
-@@ -67,6 +88,10 @@ fn query() -> String {
+@@ -81,6 +102,10 @@ fn query() -> String {
      web_sys::window().and_then(|w| w.location().search().ok()).unwrap_or_default()
  }
  
@@ -75,7 +82,7 @@ index 5d68374..4acf084 100644
  /// Wraps the app to read dropped files asynchronously (browsers can't read them synchronously)
  /// and feed them through the inbox.
  struct WebShell {
-@@ -309,3 +334,167 @@ fn mime_for(name: &str) -> &'static str {
+@@ -497,3 +522,167 @@ fn mime_for(name: &str) -> &'static str {
          _ => "application/octet-stream",
      }
  }
@@ -106,7 +113,7 @@ index 5d68374..4acf084 100644
 +    use wasm_bindgen::JsCast as _;
 +    use wasm_bindgen::JsValue;
 +    use wasm_bindgen::closure::Closure;
-+    use wordcraft_ui_egui::file_dialogs::FileDialogRequest;
++    use wordcraft_ui_egui::file_dialogs::{FileDialogAnswer, FileDialogRequest};
 +    use wordcraft_ui_egui::{Inbox, Services};
 +
 +    #[derive(Clone)]
@@ -115,7 +122,7 @@ index 5d68374..4acf084 100644
 +        parent: web_sys::Window,
 +        origin: String,
 +        /// Save locations asked of the parent and not answered yet, by request id.
-+        pending: Rc<RefCell<HashMap<u32, Sender<Option<String>>>>>,
++        pending: Rc<RefCell<HashMap<u32, Sender<FileDialogAnswer>>>>,
 +        next_id: Rc<Cell<u32>>,
 +    }
 +
@@ -169,7 +176,7 @@ index 5d68374..4acf084 100644
 +        /// Save As and Export ask the parent where to save; the answer arrives as
 +        /// `wordcraft:picked`. Opening uses the browser's file picker (`Services::open_async`),
 +        /// so other requests are cancelled at once.
-+        fn ask(&self, request: FileDialogRequest) -> Receiver<Option<String>> {
++        fn ask(&self, request: FileDialogRequest) -> Receiver<FileDialogAnswer> {
 +            let (tx, rx) = channel();
 +            if let FileDialogRequest::Save { name } = request {
 +                let id = self.next_id.get().wrapping_add(1);
@@ -207,7 +214,7 @@ index 5d68374..4acf084 100644
 +                        let Some(id) = number(&data, "id") else { return };
 +                        let Some(tx) = pending.borrow_mut().remove(&id) else { return };
 +                        // The app polls for the answer each frame; a closed app just drops it.
-+                        let _ = tx.send(string(&data, "path").filter(|p| !p.trim().is_empty()));
++                        let _ = tx.send(Ok(string(&data, "path").filter(|p| !p.trim().is_empty())));
 +                    }
 +                    _ => return,
 +                }
