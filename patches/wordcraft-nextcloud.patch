@@ -9,7 +9,7 @@ index befd8b7..0180836 100644
 -web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File"] }
 +web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File", "MessageEvent", "UrlSearchParams"] }
 diff --git a/apps/wordcraft-web/src/web.rs b/apps/wordcraft-web/src/web.rs
-index c032150..3923efd 100644
+index 5d68374..4acf084 100644
 --- a/apps/wordcraft-web/src/web.rs
 +++ b/apps/wordcraft-web/src/web.rs
 @@ -25,8 +25,13 @@ pub fn start() {
