@@ -9,7 +9,7 @@ index d9b44aa..36242e7 100644
 -web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File", "DomStringList", "IdbFactory", "IdbOpenDbRequest", "IdbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "MediaQueryList"] }
 +web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File", "DomStringList", "IdbFactory", "IdbOpenDbRequest", "IdbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "MediaQueryList", "MessageEvent", "UrlSearchParams"] }
 diff --git a/apps/wordcraft-web/src/web.rs b/apps/wordcraft-web/src/web.rs
-index a112660..d6a3253 100644
+index 0e40099..08e7fec 100644
 --- a/apps/wordcraft-web/src/web.rs
 +++ b/apps/wordcraft-web/src/web.rs
 @@ -27,9 +27,14 @@ pub fn start() {
@@ -36,12 +36,12 @@ index a112660..d6a3253 100644
          let result = eframe::WebRunner::new()
              .start(
                  canvas,
-@@ -60,18 +66,33 @@ pub fn start() {
-                     let doc = if sample { wordcraft_engine::sample::sample_document() } else { wordcraft_engine::blank_document(&region) };
+@@ -61,18 +67,33 @@ pub fn start() {
                      let mut session = Session::new(doc);
                      session.system_region = region;
--                    let mut app = WordApp::new(session, services(inbox.clone(), cc.egui_ctx.clone(), dirty, saves.clone()));
-+                    let mut services = services(inbox.clone(), cc.egui_ctx.clone(), dirty, saves.clone());
+                     let messages = Rc::new(RefCell::new(Vec::new()));
+-                    let mut app = WordApp::new(session, services(inbox.clone(), cc.egui_ctx.clone(), dirty, saves.clone(), messages.clone()));
++                    let mut services = services(inbox.clone(), cc.egui_ctx.clone(), dirty, saves.clone(), messages.clone());
 +                    if let Some(bridge) = &app_bridge {
 +                        bridge.connect(&mut services, inbox.clone(), cc.egui_ctx.clone());
 +                    }
@@ -63,7 +63,7 @@ index a112660..d6a3253 100644
 +                        // (A host page sends the document to open instead.)
                          app.start_screen();
                      }
-                     Ok(Box::new(WebShell { app, inbox }))
+                     Ok(Box::new(WebShell { app, inbox, messages }))
                  }),
              )
              .await;
@@ -73,7 +73,7 @@ index a112660..d6a3253 100644
          if let Some(el) = document.get_element_by_id(LOADING_ID) {
              match result {
                  Ok(()) => el.remove(),
-@@ -85,6 +106,10 @@ fn query() -> String {
+@@ -86,6 +107,10 @@ fn query() -> String {
      web_sys::window().and_then(|w| w.location().search().ok()).unwrap_or_default()
  }
  
@@ -84,7 +84,7 @@ index a112660..d6a3253 100644
  /// Wraps the app to read dropped files asynchronously (browsers can't read them synchronously)
  /// and feed them through the inbox.
  struct WebShell {
-@@ -468,3 +493,167 @@ fn mime_for(name: &str) -> &'static str {
+@@ -578,3 +603,167 @@ fn mime_for(name: &str) -> &'static str {
          _ => "application/octet-stream",
      }
  }

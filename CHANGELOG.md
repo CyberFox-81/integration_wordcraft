@@ -4,6 +4,10 @@
 -->
 # Changelog
 
+## 0.1.5 – 2026-10-16
+
+- WordCraft 0.7.0 (commit eae2421): the latest WordCraft, with the embedding bridge rebased onto it
+
 ## 0.1.4 – 2026-10-14
 
 - WordCraft 0.7.0 (commit 3655330): the latest WordCraft, with the embedding bridge rebased onto it
