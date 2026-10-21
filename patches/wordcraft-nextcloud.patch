@@ -1,15 +1,15 @@
 diff --git a/apps/wordcraft-web/Cargo.toml b/apps/wordcraft-web/Cargo.toml
-index d9b44aa..36242e7 100644
+index 9152db33..4a2a9d01 100644
 --- a/apps/wordcraft-web/Cargo.toml
 +++ b/apps/wordcraft-web/Cargo.toml
 @@ -29,4 +29,4 @@ rfd = { workspace = true }
  wasm-bindgen = "0.2"
  wasm-bindgen-futures = "0.4"
  js-sys = "0.3"
--web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File", "DomStringList", "IdbFactory", "IdbOpenDbRequest", "IdbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "MediaQueryList"] }
-+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File", "DomStringList", "IdbFactory", "IdbOpenDbRequest", "IdbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "MediaQueryList", "MessageEvent", "UrlSearchParams"] }
+-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File", "DomStringList", "IdbFactory", "IdbOpenDbRequest", "IdbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "MediaQueryList", "Storage"] }
++web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlAnchorElement", "HtmlIFrameElement", "Blob", "BlobPropertyBag", "Url", "Location", "CssStyleDeclaration", "Event", "EventTarget", "BeforeUnloadEvent", "ClipboardEvent", "DataTransfer", "FileList", "File", "DomStringList", "IdbFactory", "IdbOpenDbRequest", "IdbRequest", "IdbDatabase", "IdbObjectStore", "IdbTransaction", "IdbTransactionMode", "MediaQueryList", "Storage", "MessageEvent", "UrlSearchParams"] }
 diff --git a/apps/wordcraft-web/src/web.rs b/apps/wordcraft-web/src/web.rs
-index 0e40099..08e7fec 100644
+index b2e698ca..177b79ff 100644
 --- a/apps/wordcraft-web/src/web.rs
 +++ b/apps/wordcraft-web/src/web.rs
 @@ -27,9 +27,14 @@ pub fn start() {
@@ -36,7 +36,7 @@ index 0e40099..08e7fec 100644
          let result = eframe::WebRunner::new()
              .start(
                  canvas,
-@@ -61,18 +67,33 @@ pub fn start() {
+@@ -61,7 +67,11 @@ pub fn start() {
                      let mut session = Session::new(doc);
                      session.system_region = region;
                      let messages = Rc::new(RefCell::new(Vec::new()));
@@ -49,11 +49,15 @@ index 0e40099..08e7fec 100644
                      // Pasted pictures wait apart from dropped files: the app inserts one only when the page is the edit target (#1349).
                      app.services.pasted = Some(pasted);
                      app.autosave = false;
+@@ -75,14 +85,25 @@ pub fn start() {
+                         app.session.set_document(doc);
+                     }
+                     let prefs = crate::prefs::PrefsSync::new(stored);
 -                    // No document to show: start on File › Home, as the desktop app does (#766).
 -                    if !sample {
 +                    if let Some(bridge) = &app_bridge {
 +                        // `?author=`: the host's name for the user signs comments and tracked
-+                        // changes (the browser keeps no File › Options name between visits).
++                        // changes, over a name kept from an earlier visit.
 +                        if let Some(author) = query_param("author") {
 +                            let _ = app.session.run("file.setAuthor", &serde_json::json!({ "name": author }));
 +                        }
@@ -63,7 +67,7 @@ index 0e40099..08e7fec 100644
 +                        // (A host page sends the document to open instead.)
                          app.start_screen();
                      }
-                     Ok(Box::new(WebShell { app, inbox, messages }))
+                     Ok(Box::new(WebShell { app, inbox, messages, prefs }))
                  }),
              )
              .await;
@@ -73,7 +77,7 @@ index 0e40099..08e7fec 100644
          if let Some(el) = document.get_element_by_id(LOADING_ID) {
              match result {
                  Ok(()) => el.remove(),
-@@ -86,6 +107,10 @@ fn query() -> String {
+@@ -96,6 +117,10 @@ fn query() -> String {
      web_sys::window().and_then(|w| w.location().search().ok()).unwrap_or_default()
  }
  
@@ -84,7 +88,7 @@ index 0e40099..08e7fec 100644
  /// Wraps the app to read dropped files asynchronously (browsers can't read them synchronously)
  /// and feed them through the inbox.
  struct WebShell {
-@@ -578,3 +603,167 @@ fn mime_for(name: &str) -> &'static str {
+@@ -621,3 +646,168 @@ fn mime_for(name: &str) -> &'static str {
          _ => "application/octet-stream",
      }
  }
@@ -215,8 +219,9 @@ index 0e40099..08e7fec 100644
 +                    Some("wordcraft:picked") => {
 +                        let Some(id) = number(&data, "id") else { return };
 +                        let Some(tx) = pending.borrow_mut().remove(&id) else { return };
-+                        // The app polls for the answer each frame; a closed app just drops it.
-+                        let _ = tx.send(Ok(string(&data, "path").filter(|p| !p.trim().is_empty())));
++                        // The app polls for the answer each frame (no path: cancelled); a closed app just
++                        // drops it.
++                        let _ = tx.send(Ok(string(&data, "path").filter(|p| !p.trim().is_empty()).into_iter().collect()));
 +                    }
 +                    _ => return,
 +                }
