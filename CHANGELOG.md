@@ -4,6 +4,12 @@
 -->
 # Changelog
 
+## 0.1.7 – 2026-10-27
+
+- WordCraft 0.11.0 (commit 4b8b06f), which has its own embedding bridge now (storytold/wordcraft@caf5ea5): this app uses it instead of its own. The only patch left makes File › Save As › Browse… reach Nextcloud as Save As, so Nextcloud asks where to keep the file instead of the save going back over the opened one
+- Save writes back to the file you opened in its own format, as WordCraft's desktop app does: an OpenDocument (.odt) or RTF file stays .odt or .rtf instead of becoming a new .docx. A Word 97–2003 .doc still goes to a new .docx
+- Save As and Export ask for the name and folder in Nextcloud once WordCraft hands over the file; cancelling a Save As keeps the file to retry (Retry saving), and cancelling an export drops it
+
 ## 0.1.6 – 2026-10-21
 
 - WordCraft 0.9.0 (commit f7d7c02): the latest WordCraft, with the embedding bridge rebased onto it

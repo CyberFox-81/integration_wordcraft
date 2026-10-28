@@ -10,7 +10,7 @@ Write and edit the documents in your Nextcloud with [WordCraft](https://github.c
 - **Save** (Ctrl/⌘+S) writes the document back to Nextcloud, which keeps the previous state as a file version.
 - **Save As** and **Export** (PDF, ODT, RTF, plain text, PNG…) ask for a name and folder in your Nextcloud.
 - Read-only files (for example a share without edit rights) open normally; saving offers a copy.
-- WordCraft writes Word documents back in place. A .doc, .odt or .rtf file is saved as a new .docx next to it (the original stays as it is); use **Save As** with an `.odt` or `.rtf` name to keep that format.
+- WordCraft writes Word, OpenDocument and RTF documents back in place, in their own format. A Word 97–2003 .doc is saved as a new .docx next to it (the original stays as it is).
 - If someone else changes the file while you have it open, saving asks whether to replace their version or save a copy.
 - Optionally, clicking a document in Files opens it in WordCraft: tick **Open documents here from Files** in the editor's top bar.
 
@@ -49,9 +49,9 @@ Files ── "Edit in WordCraft" ──▶ /apps/integration_wordcraft/edit/{fil
                                   │  WordCraft (web/*.wasm) — postMessage bridge
 ```
 
-The editor page downloads the document over WebDAV and passes it to WordCraft with `postMessage`. When you save, WordCraft passes the bytes back and the page uploads them with `If-Match`, so a newer version on the server is never overwritten without asking. Save As and Export ask the page for a location, which it picks with Nextcloud's own folder picker. The frame page is the only one whose Content Security Policy allows compiling WebAssembly.
+The editor page downloads the document over WebDAV and passes it to WordCraft with `postMessage`. When you save, WordCraft passes the bytes back and the page uploads them with `If-Match`, so a newer version on the server is never overwritten without asking. For Save As and Export the page asks for a name and folder, with Nextcloud's own folder picker. The frame page is the only one whose Content Security Policy allows compiling WebAssembly.
 
-WordCraft's browser build saves by downloading a file. `patches/wordcraft-nextcloud.patch` adds an opt-in embedding bridge (`?host=parent`) to its web shell only, using the save, file-dialog and unsaved-changes hooks WordCraft already has; the protocol is in [web/README.md](web/README.md). It is meant to be proposed upstream, so a future official WordCraft build can be used as is.
+WordCraft's browser build has an opt-in embedding bridge (`?host=parent`, since [storytold/wordcraft@caf5ea5](https://github.com/storytold/wordcraft/commit/caf5ea509cb79ea354de2e0cb3bb56b897b59a87)); the protocol is in [web/README.md](web/README.md). `patches/wordcraft-nextcloud.patch` changes one line of it: File › Save As › Browse… reaches the page as Save As, so the page asks where to keep the file instead of a Save As under the same name going back over the opened file. It is meant to be proposed upstream.
 
 ## Build from source
 

@@ -7,13 +7,18 @@
  * The editor page. WordCraft runs in an iframe (templates/frame.php) and talks to this page
  * with postMessage (see web/README.md for the protocol):
  *
- *   WordCraft → page   wordcraft:ready      the app is listening for a document
- *   page → WordCraft   wordcraft:open       { name, bytes } the document to open
- *   WordCraft → page   wordcraft:pick-save  { id, name } Save As or Export asks where to save
- *   page → WordCraft   wordcraft:picked     { id, path } the answer (no path: cancelled)
- *   WordCraft → page   wordcraft:save       { name, bytes } Save (name) or Save As/Export (path)
- *   WordCraft → page   wordcraft:dirty      { dirty } unsaved changes appeared or went away
- *   WordCraft → page   wordcraft:failed     { error } the app couldn't start
+ *   WordCraft → page   wordcraft:ready   the app is listening for a document
+ *   page → WordCraft   wordcraft:open    { name, bytes } the document to open
+ *   WordCraft → page   wordcraft:save    { name, saveAs, bytes } a file WordCraft would download:
+ *                                        Save (saveAs false, the opened file's name), Save As or
+ *                                        a Save to a new file (saveAs true: the document becomes
+ *                                        that file), or an export (saveAs false, another name)
+ *   WordCraft → page   wordcraft:dirty   { dirty } unsaved changes appeared or went away
+ *   WordCraft → page   wordcraft:failed  { error } the app couldn't start
+ *
+ * WordCraft has had this bridge since storytold/wordcraft@caf5ea5 (patches/ makes Backstage Save As
+ * arrive as Save As). Save As and Export ask for the name and folder here, after WordCraft hands
+ * over the file.
  *
  * This page downloads and uploads over WebDAV with the user's session, so a save becomes a
  * new version of the file in Nextcloud.
@@ -46,6 +51,8 @@ interface Urls {
 /** A save that didn't reach Nextcloud, kept so it can be retried. */
 interface Unsaved {
 	name: string
+	/** WordCraft's Save As (or a Save to a new file): the document becomes the file stored. */
+	saveAs: boolean
 	bytes: ArrayBuffer
 }
 
@@ -67,9 +74,9 @@ let openByDefault = loadState<boolean>(APP, 'openByDefault', false)
 const DOCUMENT_EXTENSIONS = new Set(['.docx', '.docm', '.dotx', '.dotm', '.odt', '.rtf', '.json'])
 
 /**
- * Where a plain Save goes, by the file name WordCraft saves under. WordCraft keeps the name the
- * document was opened with (or that name as .docx for formats it doesn't write back), so after
- * Save As this map sends later saves to the new file.
+ * Where a plain Save goes, by the file name WordCraft saves under. WordCraft saves under the name
+ * the document was opened with, or under the name of its last Save As, so after a Save As this map
+ * sends later saves to the file picked here.
  */
 const saveTargets = new Map<string, string>([[file.name, file.path]])
 /** The latest ETag this page read or wrote for each path; uploads only replace that version. */
@@ -157,14 +164,9 @@ window.addEventListener('message', (event: MessageEvent) => {
 	case 'wordcraft:ready':
 		void openInFrame()
 		break
-	case 'wordcraft:pick-save':
-		if (typeof message.id === 'number') {
-			void answerPickSave(message.id, String(message.name ?? file.name))
-		}
-		break
 	case 'wordcraft:save':
 		if (message.bytes instanceof ArrayBuffer) {
-			queueSave({ name: String(message.name ?? file.name), bytes: message.bytes })
+			queueSave({ name: basename(String(message.name ?? file.name)), saveAs: message.saveAs === true, bytes: message.bytes })
 		}
 		break
 	case 'wordcraft:dirty':
@@ -219,15 +221,6 @@ async function download(path: string): Promise<{ bytes: ArrayBuffer, etag: strin
 }
 
 // ---------------------------------------------------------------------------------------------
-// Save As and Export: WordCraft asks where, the user picks a name and folder here
-
-async function answerPickSave(id: number, suggestedName: string): Promise<void> {
-	const exporting = !isDocument(suggestedName)
-	const path = await askSavePathWithStatus(suggestedName, dirname(documentPath), exporting ? 'export' : 'saveAs', true)
-	frame.contentWindow?.postMessage({ type: 'wordcraft:picked', id, path }, window.location.origin)
-}
-
-// ---------------------------------------------------------------------------------------------
 // Saving
 
 function queueSave(save: Unsaved): void {
@@ -246,31 +239,43 @@ function queueSave(save: Unsaved): void {
 }
 
 /**
- * Upload one save. A path is a Save As or Export location picked here; a bare name is a plain
- * Save, which goes to the document's file, or asks where when there's no file to write back to
- * (a read-only share, or a format WordCraft saves as .docx instead).
+ * Upload one save. A Save under a name this page knows goes back to the document's file, or asks
+ * where when that file can't be written (a read-only share). Save As, a Save to a new file (an
+ * imported .doc that WordCraft saves as .docx) and exports (any other name: PDF, PNG, a copy in a
+ * format that doesn't keep everything) ask for a name and folder here.
  */
 async function store(save: Unsaved): Promise<void> {
 	unsaved.delete(save.name)
-	if (save.name.startsWith('/')) {
-		await uploadPicked(save, save.name)
-		return
-	}
-	const target = saveTargets.get(save.name)
+	const target = save.saveAs ? undefined : saveTargets.get(save.name)
 	if (target !== undefined && writable.has(target)) {
 		await uploadExisting(save, target)
 		return
 	}
-	const path = await askSavePathWithStatus(save.name, dirname(documentPath), target === undefined ? 'newFormat' : 'readOnly', false)
+	const reason: SaveReason = target !== undefined ? 'readOnly' : !save.saveAs ? 'export' : isNewFormat(save.name) ? 'newFormat' : 'saveAs'
+	const path = await askSavePathWithStatus(save.name, dirname(documentPath), reason, true)
 	if (path === null) {
-		unsaved.set(save.name, save)
-		showWarning(t('integration_wordcraft', '{name} was not saved to Nextcloud', { name: save.name }, { escape: false }))
+		// WordCraft counts a Save or Save As as done once it hands the file over, so the page
+		// keeps it to retry. A cancelled export is just not wanted.
+		if (reason !== 'export') {
+			unsaved.set(save.name, save)
+			showWarning(t('integration_wordcraft', '{name} was not saved to Nextcloud', { name: save.name }, { escape: false }))
+		}
 		return
 	}
-	await uploadNew(save, path)
+	await uploadPicked(save, path)
 }
 
-/** A location picked for Save As or Export: replacing a file there was already agreed. */
+/**
+ * Whether Save made `name` a new file because WordCraft doesn't write the document's own format
+ * (an imported Word 97–2003 .doc is saved as .docx).
+ */
+function isNewFormat(name: string): boolean {
+	const current = basename(documentPath)
+	const stem = (n: string) => n.slice(0, n.length - extname(n).length)
+	return !isDocument(current) && stem(current) === stem(name)
+}
+
+/** A location picked here: replacing a file there was already agreed. */
 async function uploadPicked(save: Unsaved, path: string): Promise<void> {
 	const choice = picked.get(path)
 	picked.delete(path)
@@ -341,19 +346,14 @@ async function finishUpload(save: Unsaved, path: string, response: Response): Pr
 		etags.set(path, quoted(etag))
 	}
 	writable.add(path)
-	// A plain Save that had to go to a new file (read-only original, or a format WordCraft
-	// saves as .docx) moves the document there, and so does Save As in the format WordCraft
-	// saves in: later plain saves come here. Anything else (PDF, plain text, or ODT/RTF from a
-	// .docx) is a copy, and saves keep going to the document's file.
-	const plainSave = !save.name.startsWith('/')
-	if (plainSave) {
+	// Save As, and a Save that had to go to a new file (a read-only original, an imported .doc
+	// saved as .docx), move the document there: WordCraft's later saves under that name come
+	// here. An export is a copy, and saves keep going to the document's file.
+	const moves = save.saveAs || saveTargets.has(save.name)
+	if (moves) {
 		saveTargets.set(save.name, path)
 	}
-	const moved = [...saveTargets].filter(([name, target]) => target === documentPath && extname(name).toLowerCase() === extname(path).toLowerCase())
-	if (path !== documentPath && (plainSave || moved.length > 0)) {
-		for (const [name] of moved) {
-			saveTargets.set(name, path)
-		}
+	if (moves && path !== documentPath) {
 		documentPath = path
 		setTitle(path)
 		// OC-FileId is the zero-padded id followed by the instance id.

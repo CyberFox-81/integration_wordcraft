@@ -2,7 +2,12 @@
 # SPDX-FileCopyrightText: 2026 Britton Couchman <brittondcouchman@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Build WordCraft for the browser, with the embedding bridge from patches/, into web/.
+# Build WordCraft for the browser into web/.
+#
+# WordCraft has the embedding bridge this app uses (`?host=parent`) since
+# storytold/wordcraft@caf5ea5. patches/wordcraft-nextcloud.patch only makes File › Save As ›
+# Browse… reach this app as Save As: without it, a Save As under the opened file's own name is
+# sent as a plain Save and goes back over that file without asking where.
 #
 # Usage: scripts/build-wordcraft-web.sh [WORDCRAFT_CHECKOUT]
 #
@@ -15,14 +20,14 @@
 # when installed and shrinks the download.
 #
 # Environment:
-#   WORDCRAFT_REF  commit or tag to clone (default: the commit the patch was made against)
+#   WORDCRAFT_REF  commit or tag to clone (default: the commit this release was built from)
 #   BUILD_STD=1    build the standard library from source (when the wasm32 target can't be
 #                  installed through rustup but rust-src is available)
 #   FAST=1         skip LTO and use parallel codegen: quicker builds, bigger wasm
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORDCRAFT_REF="${WORDCRAFT_REF:-f7d7c0288c131e3970922fee1c8af367c1f3c802}"
+WORDCRAFT_REF="${WORDCRAFT_REF:-4b8b06fe03f93c9fc81783ee3e5b01977be89efc}"
 SRC="${1:-$APP_DIR/build/wordcraft}"
 PATCH="$APP_DIR/patches/wordcraft-nextcloud.patch"
 OUT="$APP_DIR/web"
@@ -33,8 +38,12 @@ if [ ! -e "$SRC/.git" ]; then
 	git -C "$SRC" checkout --quiet "$WORDCRAFT_REF"
 fi
 
-if grep -q 'wordcraft:ready' "$SRC/apps/wordcraft-web/src/web.rs"; then
-	echo "bridge patch already applied"
+if ! grep -q 'wordcraft:ready' "$SRC/apps/wordcraft-web/src/host.rs" 2>/dev/null; then
+	echo "error: this WordCraft has no embedding bridge; use caf5ea5 (storytold/wordcraft) or later" >&2
+	exit 1
+fi
+if grep -q 'host_save.is_some() { "file.saveAs" }' "$SRC/crates/ui-egui/src/file_dialogs.rs"; then
+	echo "Save As patch already applied"
 else
 	git -C "$SRC" apply "$PATCH"
 fi
@@ -73,6 +82,9 @@ mkdir -p "$OUT"
 rm -f "$OUT"/wordcraft-web-*.js "$OUT"/wordcraft-web-*.wasm
 cp "$STAGE/wordcraft-web.js" "$OUT/$JS_NAME"
 cp "$STAGE/wordcraft-web_bg.wasm" "$OUT/$WASM_NAME"
+# JavaScript snippets the glue imports (eframe's, for one), next to it.
+rm -rf "$OUT/snippets"
+if [ -d "$STAGE/snippets" ]; then cp -R "$STAGE/snippets" "$OUT/snippets"; fi
 
 # WordCraft's licenses and the attributions for the fonts and assets compiled into it.
 for f in LICENSE-MIT LICENSE-APACHE NOTICE ATTRIBUTION.md; do
