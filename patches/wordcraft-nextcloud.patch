@@ -1,8 +1,8 @@
 diff --git a/crates/ui-egui/src/file_dialogs.rs b/crates/ui-egui/src/file_dialogs.rs
-index 9b04472e..ea11da39 100644
+index a4399b6f..de0dda0b 100644
 --- a/crates/ui-egui/src/file_dialogs.rs
 +++ b/crates/ui-egui/src/file_dialogs.rs
-@@ -327,7 +327,11 @@ impl WordApp {
+@@ -328,7 +328,11 @@ impl WordApp {
                  // otherwise dropped: a failed write (no permission, disk full, a bad path) left the
                  // Save As page sitting there with nothing to say why, since its own render loop
                  // skips the status bar while Backstage is open. `fail_save_as` reaches both.

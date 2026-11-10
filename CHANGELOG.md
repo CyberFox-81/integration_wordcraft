@@ -4,6 +4,10 @@
 -->
 # Changelog
 
+## 0.1.8 – 2026-11-09
+
+- WordCraft 0.15.1 (commit 2922fe5), with the one-line patch that makes File › Save As › Browse… reach Nextcloud as Save As rebased onto it
+
 ## 0.1.7 – 2026-10-27
 
 - WordCraft 0.11.0 (commit 4b8b06f), which has its own embedding bridge now (storytold/wordcraft@caf5ea5): this app uses it instead of its own. The only patch left makes File › Save As › Browse… reach Nextcloud as Save As, so Nextcloud asks where to keep the file instead of the save going back over the opened one
